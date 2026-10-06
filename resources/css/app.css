@@ -1,0 +1,19 @@
+@import 'tailwindcss';
+
+@source '../**/*.blade.php';
+@source '../**/*.js';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+@plugin 'daisyui' {
+    themes: bumblebee --default;
+}
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+    --color-bjmp-blue: #003366;
+    --color-bjmp-dark-blue: #002244;
+    --color-bjmp-gold: #FFD700;
+    --color-bjmp-red: #CC0000;
+}
