@@ -67,11 +67,27 @@
 
             <div class="grid gap-5 sm:grid-cols-2">
                 <div>
-                    <label for="visitor_sex" class="mb-2 block text-sm font-semibold text-slate-800">Sex</label>
-                    <select id="visitor_sex" name="visitor_sex" required class="w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm focus:border-[#0A2472] focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <label for="visitor_sex" class="mb-2 block text-sm font-semibold text-slate-800">
+                        Sex
+                    </label>
+
+                    <select
+                        id="visitor_sex"
+                        name="visitor_sex"
+                        required
+                        class="w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm focus:border-[#0A2472] focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    >
                         <option value="">Select sex</option>
-                        <option value="Male" @selected(old('visitor_sex', $booking->visitor_sex) === 'Male')">Male</option>
-                        <option value="Female" @selected(old('visitor_sex', $booking->visitor_sex) === 'Female')">Female</option>
+
+                        <option value="Male"
+                            @selected(old('visitor_sex', $booking->visitor_sex) === 'Male')>
+                            Male
+                        </option>
+
+                        <option value="Female"
+                            @selected(old('visitor_sex', $booking->visitor_sex) === 'Female')>
+                            Female
+                        </option>
                     </select>
                 </div>
                 <div>
