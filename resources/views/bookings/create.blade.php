@@ -10,6 +10,33 @@
     </style>
 @endpush
 
+@php
+    // Single source of truth for the visiting schedule.
+    // Keys follow JavaScript's Date#getDay(): 0 = Sunday ... 6 = Saturday.
+    $afternoonSlots = [
+        '1:00 PM - 2:00 PM',
+        '2:00 PM - 3:00 PM',
+        '3:00 PM - 4:00 PM',
+        '4:00 PM - 5:00 PM',
+    ];
+    $morningSlots = [
+        '8:00 AM - 9:00 AM',
+        '9:00 AM - 10:00 AM',
+        '10:00 AM - 11:00 AM',
+        '11:00 AM - 12:00 PM',
+    ];
+    $visitingSchedule = [
+        0 => array_merge($morningSlots, $afternoonSlots), // Sunday
+        1 => [],                                          // Monday: no visitation
+        2 => $afternoonSlots,                             // Tuesday
+        3 => $afternoonSlots,                             // Wednesday
+        4 => $afternoonSlots,                             // Thursday
+        5 => $afternoonSlots,                             // Friday
+        6 => array_merge($morningSlots, $afternoonSlots), // Saturday
+    ];
+    $minVisitDate = now()->addDay()->format('Y-m-d'); // today and past dates are never allowed
+@endphp
+
 @section('content')
     <section class="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
         <div class="mb-8 max-w-2xl">
@@ -53,7 +80,14 @@
 
                         <div class="flex gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-950">
                             <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#003366] text-xs font-bold text-white" aria-hidden="true">i</span>
-                            <p><strong>Reminder:</strong> Visitation slots are limited. Mondays are non-visiting days. Please arrive 15 minutes before your scheduled time.</p>
+                            <div>
+                                <p><strong>Reminder:</strong> Visitation slots are limited. Please arrive 15 minutes before your scheduled time.</p>
+                                <ul class="mt-2 list-inside list-disc text-[13px] leading-5">
+                                    <li><strong>Monday:</strong> No visitation</li>
+                                    <li><strong>Tuesday – Friday:</strong> 1:00 PM – 5:00 PM</li>
+                                    <li><strong>Saturday – Sunday:</strong> 8:00 AM – 12:00 PM &amp; 1:00 PM – 5:00 PM</li>
+                                </ul>
+                            </div>
                         </div>
 
                         <div class="grid gap-5 sm:grid-cols-2">
@@ -80,21 +114,17 @@
 
                             <div>
                                 <label for="visit_date" class="mb-2 block text-sm font-semibold text-slate-800">Visit date <span class="text-red-600">*</span></label>
-                                <input type="date" id="visit_date" name="visit_date" value="{{ old('visit_date') }}" min="{{ now()->addDay()->format('Y-m-d') }}" required class="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-[#003366] focus:outline-none focus:ring-2 focus:ring-blue-100">
-                                <p class="mt-1.5 text-xs text-slate-500">Choose a future date. Mondays are not available.</p>
+                                <input type="date" id="visit_date" name="visit_date" value="{{ old('visit_date') }}" min="{{ $minVisitDate }}" required class="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-[#003366] focus:outline-none focus:ring-2 focus:ring-blue-100">
+                                <p class="mt-1.5 text-xs text-slate-500">Choose a future date (starting tomorrow). Mondays are not available.</p>
+                                <p id="visit_date_error" class="mt-1.5 hidden text-xs font-medium text-red-700" role="alert"></p>
                             </div>
 
                             <div>
                                 <label for="time_slot" class="mb-2 block text-sm font-semibold text-slate-800">Time slot <span class="text-red-600">*</span></label>
                                 <select id="time_slot" name="time_slot" required class="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-[#003366] focus:outline-none focus:ring-2 focus:ring-blue-100">
-                                    <option value="">Select a time slot</option>
-                                    <option value="8:00 AM - 9:00 AM" @selected(old('time_slot') === '8:00 AM - 9:00 AM')>8:00 AM - 9:00 AM</option>
-                                    <option value="9:00 AM - 10:00 AM" @selected(old('time_slot') === '9:00 AM - 10:00 AM')>9:00 AM - 10:00 AM</option>
-                                    <option value="10:00 AM - 11:00 AM" @selected(old('time_slot') === '10:00 AM - 11:00 AM')>10:00 AM - 11:00 AM</option>
-                                    <option value="1:00 PM - 2:00 PM" @selected(old('time_slot') === '1:00 PM - 2:00 PM')>1:00 PM - 2:00 PM</option>
-                                    <option value="2:00 PM - 3:00 PM" @selected(old('time_slot') === '2:00 PM - 3:00 PM')>2:00 PM - 3:00 PM</option>
-                                    <option value="3:00 PM - 4:00 PM" @selected(old('time_slot') === '3:00 PM - 4:00 PM')>3:00 PM - 4:00 PM</option>
+                                    <option value="">Select a visit date first</option>
                                 </select>
+                                <p id="time_slot_hint" class="mt-1.5 text-xs text-slate-500">Available time slots depend on the day you choose.</p>
                             </div>
                         </div>
 
@@ -121,12 +151,12 @@
                         <div class="grid gap-5 sm:grid-cols-2">
                             <div class="sm:col-span-2">
                                 <label for="pdl_name" class="mb-2 block text-sm font-semibold text-slate-800">Person deprived of liberty (PDL) Name <span class="text-red-600">*</span></label>
-                                <input type="text" id="pdl_name" name="pdl_name" value="{{ old('pdl_name') }}" required autocomplete="off" placeholder="Enter PDL's full name" class="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#003366] focus:outline-none focus:ring-2 focus:ring-blue-100">
+                                <input type="text" id="pdl_name" name="pdl_name" value="{{ old('pdl_name') }}" required autocomplete="off" placeholder="Juan A. Dela Cruz" class="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#003366] focus:outline-none focus:ring-2 focus:ring-blue-100">
                                 <p class="mt-1.5 text-xs text-slate-500">Enter the full name of the person you wish to visit. This information is kept private.</p>
                             </div>
                             <div class="sm:col-span-2">
                                 <label for="visitor_full_name" class="mb-2 block text-sm font-semibold text-slate-800">Full name (as in valid ID) <span class="text-red-600">*</span></label>
-                                <input type="text" id="visitor_full_name" name="visitor_full_name" value="{{ old('visitor_full_name') }}" required autocomplete="name" placeholder="Juan Dela Cruz" class="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#003366] focus:outline-none focus:ring-2 focus:ring-blue-100">
+                                <input type="text" id="visitor_full_name" name="visitor_full_name" value="{{ old('visitor_full_name') }}" required autocomplete="name" placeholder="Juan A. Dela Cruz" class="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#003366] focus:outline-none focus:ring-2 focus:ring-blue-100">
                             </div>
                             <div>
                                 <label for="visitor_contact" class="mb-2 block text-sm font-semibold text-slate-800">Contact number <span class="text-red-600">*</span></label>
@@ -140,8 +170,8 @@
                                 <label for="visitor_sex" class="mb-2 block text-sm font-semibold text-slate-800">Sex <span class="text-red-600">*</span></label>
                                 <select id="visitor_sex" name="visitor_sex" required class="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-[#003366] focus:outline-none focus:ring-2 focus:ring-blue-100">
                                     <option value="">Select sex</option>
-                                    <option value="Male" @selected(old('visitor_sex') === 'Male')">Male</option>
-                                    <option value="Female" @selected(old('visitor_sex') === 'Female')">Female</option>
+                                    <option value="Male" @selected(old('visitor_sex') === 'Male')>Male</option>
+                                    <option value="Female" @selected(old('visitor_sex') === 'Female')>Female</option>
                                 </select>
                             </div>
                             <div>
@@ -269,6 +299,14 @@
                     <li class="border-t border-slate-100 pt-3">Your booking reference or QR code</li>
                     <li class="border-t border-slate-100 pt-3">Arrive 15 minutes before your slot</li>
                 </ul>
+
+                <h3 class="mt-6 text-sm font-bold text-slate-900">Visiting hours</h3>
+                <dl class="mt-3 grid gap-3 text-sm text-slate-600">
+                    <div class="border-t border-slate-100 pt-3"><dt class="font-semibold text-slate-800">Monday</dt><dd>No visitation</dd></div>
+                    <div class="border-t border-slate-100 pt-3"><dt class="font-semibold text-slate-800">Tuesday – Friday</dt><dd>1:00 PM – 5:00 PM</dd></div>
+                    <div class="border-t border-slate-100 pt-3"><dt class="font-semibold text-slate-800">Saturday – Sunday</dt><dd>8:00 AM – 12:00 PM<br>1:00 PM – 5:00 PM</dd></div>
+                </dl>
+
                 <a href="{{ route('home') }}#requirements" class="mt-5 inline-block text-sm font-semibold text-[#0A2472] underline decoration-blue-200 underline-offset-4">Read all visitation requirements</a>
             </aside>
         </div>
@@ -277,13 +315,21 @@
 
 @push('scripts')
     <script>
+        // Visiting schedule (from the server). Keys: 0 = Sunday ... 6 = Saturday.
+        const VISITING_SCHEDULE = @json($visitingSchedule);
+        const MIN_VISIT_DATE = @json($minVisitDate); // earliest bookable date (tomorrow)
+        const PREVIOUS_TIME_SLOT = @json(old('time_slot'));
+        const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
         const bookingForm = document.getElementById('bookingForm');
         const bookingSteps = [...document.querySelectorAll('[data-booking-step]')];
         const bookingIndicators = [...document.querySelectorAll('[data-step-indicator]')];
         const facilitySelect = document.getElementById('facility_id');
         const facilitySearch = document.getElementById('facility_search');
         const visitDateInput = document.getElementById('visit_date');
+        const visitDateError = document.getElementById('visit_date_error');
         const timeSlotSelect = document.getElementById('time_slot');
+        const timeSlotHint = document.getElementById('time_slot_hint');
         const availabilityPanel = document.getElementById('slotAvailability');
         const availabilityMessage = document.getElementById('availabilityMessage');
         const facilityBrandPanel = document.getElementById('facility-brand-panel');
@@ -383,6 +429,78 @@
             checkAvailability();
         });
 
+        /* ------------------------------------------------------------------
+         * Date & time-slot rules
+         * ------------------------------------------------------------------ */
+
+        // Parse "YYYY-MM-DD" as a local date (avoids UTC off-by-one-day bugs).
+        function dayOfWeek(dateString) {
+            const [year, month, day] = dateString.split('-').map(Number);
+            return new Date(year, month - 1, day).getDay();
+        }
+
+        function showDateError(message) {
+            visitDateError.textContent = message;
+            visitDateError.classList.toggle('hidden', !message);
+        }
+
+        // Rebuild the time-slot dropdown so only valid options exist.
+        function setTimeSlotOptions(slots, placeholder, keepValue = '') {
+            timeSlotSelect.innerHTML = '';
+
+            const placeholderOption = document.createElement('option');
+            placeholderOption.value = '';
+            placeholderOption.textContent = placeholder;
+            timeSlotSelect.appendChild(placeholderOption);
+
+            slots.forEach((slot) => {
+                const option = document.createElement('option');
+                option.value = slot;
+                option.textContent = slot;
+                timeSlotSelect.appendChild(option);
+            });
+
+            timeSlotSelect.value = slots.includes(keepValue) ? keepValue : '';
+        }
+
+        // Applies the schedule for the currently chosen date.
+        function applyDateRules(preferredSlot = '') {
+            const chosenDate = visitDateInput.value;
+            showDateError('');
+            visitDateInput.setCustomValidity('');
+
+            if (!chosenDate) {
+                setTimeSlotOptions([], 'Select a visit date first');
+                timeSlotHint.textContent = 'Available time slots depend on the day you choose.';
+                return;
+            }
+
+            // Block today and past dates (string comparison works for YYYY-MM-DD).
+            if (chosenDate < MIN_VISIT_DATE) {
+                visitDateInput.value = '';
+                showDateError('Today and past dates are not available. Please choose a future date.');
+                setTimeSlotOptions([], 'Select a visit date first');
+                timeSlotHint.textContent = 'Available time slots depend on the day you choose.';
+                return;
+            }
+
+            const weekday = dayOfWeek(chosenDate);
+            const slots = VISITING_SCHEDULE[weekday] || [];
+
+            // Block days with no visitation (Monday).
+            if (slots.length === 0) {
+                visitDateInput.value = '';
+                showDateError(`${DAY_NAMES[weekday]}s are non-visiting days. Please choose another date.`);
+                setTimeSlotOptions([], 'Select a visit date first');
+                timeSlotHint.textContent = 'Available time slots depend on the day you choose.';
+                return;
+            }
+
+            const keep = preferredSlot || timeSlotSelect.value;
+            setTimeSlotOptions(slots, 'Select a time slot', keep);
+            timeSlotHint.textContent = `Showing available time slots for ${DAY_NAMES[weekday]}.`;
+        }
+
         async function checkAvailability() {
             if (!facilitySelect.value || !visitDateInput.value || !timeSlotSelect.value) {
                 availabilityPanel.classList.add('hidden');
@@ -416,7 +534,10 @@
             }
         }
 
-        visitDateInput.addEventListener('change', checkAvailability);
+        visitDateInput.addEventListener('change', () => {
+            applyDateRules();
+            checkAvailability();
+        });
         timeSlotSelect.addEventListener('change', checkAvailability);
 
         // Real-time facility search
@@ -513,10 +634,25 @@
             }
         });
 
+        // Final safety net: never submit an invalid date/slot combination.
+        bookingForm.addEventListener('submit', (event) => {
+            const chosenDate = visitDateInput.value;
+            const slots = chosenDate ? (VISITING_SCHEDULE[dayOfWeek(chosenDate)] || []) : [];
+
+            if (!chosenDate || chosenDate < MIN_VISIT_DATE || !slots.includes(timeSlotSelect.value)) {
+                event.preventDefault();
+                applyDateRules();
+                showBookingStep(1);
+                (visitDateInput.value ? timeSlotSelect : visitDateInput).reportValidity();
+            }
+        });
+
+        // Initial state (also restores old input after a failed server validation).
         if (facilitySelect.value) {
             updateFacilityBrand();
         }
 
+        applyDateRules(PREVIOUS_TIME_SLOT || '');
         showBookingStep(activeStep);
         checkAvailability();
     </script>
