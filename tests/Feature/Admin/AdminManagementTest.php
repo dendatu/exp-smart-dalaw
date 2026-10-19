@@ -2,7 +2,6 @@
 
 use App\Models\Booking;
 use App\Models\Facility;
-use App\Models\Pdl;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -338,4 +337,362 @@ test('visit calendar shows all bookings in the selected month', function () {
         ->assertSee('BJMP-OCT001')
         ->assertSee('BJMP-OCT002')
         ->assertDontSee('BJMP-NOV001');
+});
+
+test('admin can view walk-in booking creation form', function () {
+    $admin = User::factory()->create();
+    $facility = createAdminManagementFacility();
+
+    $this->actingAs($admin)
+        ->get(route('admin.bookings.create'))
+        ->assertOk()
+        ->assertSeeText('Add Walk-in Visitor')
+        ->assertSeeText('Register a visitor who arrived at the facility without a prior booking')
+        ->assertSee($facility->name)
+        ->assertSee('<select name="accompanying_visitors[${index}][id_type]"', false)
+        ->assertSee('<option value="PhilSys National ID">PhilSys National ID</option>', false)
+        ->assertSee('<select name="accompanying_visitors[${index}][relationship_to_pdl]"', false)
+        ->assertSee('<option value="Legal Counsel">Legal Counsel</option>', false)
+        ->assertDontSee('<input type="text" name="accompanying_visitors[${index}][id_type]"', false)
+        ->assertDontSee('<input type="text" name="accompanying_visitors[${index}][relationship_to_pdl]"', false);
+});
+
+test('admin can create a walk-in booking', function () {
+    $admin = User::factory()->create();
+    $facility = createAdminManagementFacility();
+
+    $this->actingAs($admin)
+        ->post(route('admin.bookings.store'), [
+            'facility_id' => $facility->id,
+            'pdl_name' => 'Juan Dela Cruz',
+            'visitor_full_name' => 'Walk-in Visitor',
+            'visitor_sex' => 'Male',
+            'visitor_age' => 30,
+            'visitor_email' => 'walkin@example.com',
+            'visitor_contact' => '09123456789',
+            'visitor_id_type' => 'Passport',
+            'visitor_id_number' => 'P1234567',
+            'relationship_to_pdl' => 'Spouse',
+            'visit_date' => today()->addDay()->toDateString(),
+            'time_slot' => '8:00 AM - 9:00 AM',
+        ])
+        ->assertRedirect(route('admin.dashboard'))
+        ->assertSessionHas('success', 'Walk-in visitor registered successfully.');
+
+    $this->assertDatabaseHas('bookings', [
+        'visitor_full_name' => 'Walk-in Visitor',
+        'status' => 'Approved',
+    ]);
+
+    $booking = Booking::where('visitor_full_name', 'Walk-in Visitor')->first();
+    expect($booking->status)->toBe('Approved')
+        ->and($booking->terms_accepted)->toBeTrue()
+        ->and($booking->privacy_consent)->toBeTrue();
+
+    $this->assertDatabaseHas('booking_status_histories', [
+        'booking_id' => $booking->id,
+        'user_id' => $admin->id,
+        'from_status' => null,
+        'to_status' => 'Approved',
+        'reason' => 'Walk-in visitor registered on-site.',
+    ]);
+});
+
+test('walk-in bookings can be for today', function () {
+    $admin = User::factory()->create();
+    $facility = createAdminManagementFacility();
+
+    $this->actingAs($admin)
+        ->post(route('admin.bookings.store'), [
+            'facility_id' => $facility->id,
+            'pdl_name' => 'Juan Dela Cruz',
+            'visitor_full_name' => 'Today Walk-in',
+            'visitor_sex' => 'Male',
+            'visitor_age' => 30,
+            'visitor_contact' => '09123456789',
+            'visitor_id_type' => 'Passport',
+            'visitor_id_number' => 'P1234567',
+            'relationship_to_pdl' => 'Spouse',
+            'visit_date' => today()->toDateString(),
+            'time_slot' => '8:00 AM - 9:00 AM',
+        ])
+        ->assertRedirect(route('admin.dashboard'));
+
+    $this->assertDatabaseHas('bookings', [
+        'visitor_full_name' => 'Today Walk-in',
+        'status' => 'Approved',
+    ]);
+});
+
+test('walk-in bookings cannot exceed facility slot capacity', function () {
+    $admin = User::factory()->create();
+    $facility = createAdminManagementFacility(1);
+    createAdminManagementBooking($facility, [
+        'visit_date' => today()->addDay()->toDateString(),
+        'time_slot' => '8:00 AM - 9:00 AM',
+        'status' => 'Approved',
+    ]);
+
+    $this->actingAs($admin)
+        ->post(route('admin.bookings.store'), [
+            'facility_id' => $facility->id,
+            'pdl_name' => 'Juan Dela Cruz',
+            'visitor_full_name' => 'Walk-in Visitor',
+            'visitor_sex' => 'Male',
+            'visitor_age' => 30,
+            'visitor_contact' => '09123456789',
+            'visitor_id_type' => 'Passport',
+            'visitor_id_number' => 'P1234567',
+            'relationship_to_pdl' => 'Spouse',
+            'visit_date' => today()->addDay()->toDateString(),
+            'time_slot' => '8:00 AM - 9:00 AM',
+        ])
+        ->assertSessionHasErrors('time_slot');
+
+    $this->assertDatabaseMissing('bookings', [
+        'visitor_full_name' => 'Walk-in Visitor',
+    ]);
+});
+
+test('non-admins cannot access walk-in booking creation', function () {
+    $this->get(route('admin.bookings.create'))
+        ->assertRedirect(route('login'));
+
+    $this->post(route('admin.bookings.store'), [])
+        ->assertRedirect(route('login'));
+});
+
+test('admin can add accompanying visitors when editing a booking', function () {
+    $admin = User::factory()->create();
+    $facility = createAdminManagementFacility();
+    $booking = createAdminManagementBooking($facility, ['status' => 'Approved']);
+
+    $this->actingAs($admin)
+        ->put(route('admin.bookings.update', $booking), [
+            'facility_id' => $facility->id,
+            'pdl_name' => 'Juan Dela Cruz',
+            'visitor_full_name' => 'Sample Visitor',
+            'visitor_sex' => 'Male',
+            'visitor_age' => 30,
+            'visitor_email' => 'visitor@example.com',
+            'visitor_contact' => '09123456789',
+            'visitor_id_type' => 'Passport',
+            'visitor_id_number' => 'P1234567',
+            'relationship_to_pdl' => 'Spouse',
+            'visit_date' => today()->addDays(8)->toDateString(),
+            'time_slot' => '9:00 AM - 10:00 AM',
+            'accompanying_visitors' => [
+                [
+                    'full_name' => 'Accompanying Visitor 1',
+                    'age' => 25,
+                    'sex' => 'Female',
+                    'id_type' => 'Driver\'s License',
+                    'id_number' => 'DL-987654',
+                    'relationship_to_pdl' => 'Sibling',
+                ],
+            ],
+        ])
+        ->assertRedirect(route('admin.dashboard'));
+
+    $this->assertDatabaseHas('accompanying_visitors', [
+        'booking_id' => $booking->id,
+        'full_name' => 'Accompanying Visitor 1',
+    ]);
+});
+
+test('admin can remove accompanying visitors when editing a booking', function () {
+    $admin = User::factory()->create();
+    $facility = createAdminManagementFacility();
+    $booking = createAdminManagementBooking($facility, ['status' => 'Approved']);
+    $booking->accompanyingVisitors()->create([
+        'full_name' => 'Existing Visitor',
+        'age' => 30,
+        'sex' => 'Male',
+        'id_type' => 'Passport',
+        'id_number' => 'P1234567',
+        'relationship_to_pdl' => 'Friend',
+    ]);
+
+    $this->actingAs($admin)
+        ->put(route('admin.bookings.update', $booking), [
+            'facility_id' => $facility->id,
+            'pdl_name' => 'Juan Dela Cruz',
+            'visitor_full_name' => 'Sample Visitor',
+            'visitor_sex' => 'Male',
+            'visitor_age' => 30,
+            'visitor_email' => 'visitor@example.com',
+            'visitor_contact' => '09123456789',
+            'visitor_id_type' => 'Passport',
+            'visitor_id_number' => 'P1234567',
+            'relationship_to_pdl' => 'Spouse',
+            'visit_date' => today()->addDays(8)->toDateString(),
+            'time_slot' => '9:00 AM - 10:00 AM',
+            'accompanying_visitors' => [],
+        ])
+        ->assertRedirect(route('admin.dashboard'));
+
+    $this->assertDatabaseMissing('accompanying_visitors', [
+        'booking_id' => $booking->id,
+    ]);
+});
+
+test('walk-in bookings can have accompanying visitors', function () {
+    $admin = User::factory()->create();
+    $facility = createAdminManagementFacility();
+
+    $this->actingAs($admin)
+        ->post(route('admin.bookings.store'), [
+            'facility_id' => $facility->id,
+            'pdl_name' => 'Juan Dela Cruz',
+            'visitor_full_name' => 'Walk-in Visitor',
+            'visitor_sex' => 'Male',
+            'visitor_age' => 30,
+            'visitor_contact' => '09123456789',
+            'visitor_id_type' => 'Passport',
+            'visitor_id_number' => 'P1234567',
+            'relationship_to_pdl' => 'Spouse',
+            'visit_date' => today()->addDay()->toDateString(),
+            'time_slot' => '8:00 AM - 9:00 AM',
+            'accompanying_visitors' => [
+                [
+                    'full_name' => 'Accompanying Person',
+                    'age' => 28,
+                    'sex' => 'Female',
+                    'id_type' => 'Driver\'s License',
+                    'id_number' => 'DL-555555',
+                    'relationship_to_pdl' => 'Spouse',
+                ],
+            ],
+        ])
+        ->assertRedirect(route('admin.dashboard'));
+
+    $booking = Booking::where('visitor_full_name', 'Walk-in Visitor')->first();
+    $this->assertDatabaseHas('accompanying_visitors', [
+        'booking_id' => $booking->id,
+        'full_name' => 'Accompanying Person',
+    ]);
+});
+
+test('admin can view daily visitation summary', function () {
+    $admin = User::factory()->create();
+    $facility = createAdminManagementFacility();
+
+    $booking1 = createAdminManagementBooking($facility, [
+        'visitor_age' => 10,
+        'visitor_sex' => 'Male',
+        'visit_date' => today()->toDateString(),
+        'status' => 'Approved',
+    ]);
+    $booking1->accompanyingVisitors()->create([
+        'full_name' => 'Child Visitor',
+        'age' => 8,
+        'sex' => 'Female',
+        'id_type' => 'Passport',
+        'id_number' => 'P111111',
+        'relationship_to_pdl' => 'Sibling',
+    ]);
+
+    $booking2 = createAdminManagementBooking($facility, [
+        'visitor_age' => 65,
+        'visitor_sex' => 'Female',
+        'visit_date' => today()->toDateString(),
+        'status' => 'Approved',
+    ]);
+
+    $response = $this->actingAs($admin)
+        ->get(route('admin.daily-summary', ['date' => today()->toDateString()]));
+
+    $response->assertOk()
+        ->assertSeeText('Daily Visitation Summary')
+        ->assertSeeText('Total Visitors')
+        ->assertSee('4') // 2 main visitors + 2 accompanying
+        ->assertSeeText('Children (Under 18)')
+        ->assertSee('2')
+        ->assertSeeText('Senior Citizens (60+)')
+        ->assertSee('1');
+});
+
+test('daily summary correctly categorizes visitors by age', function () {
+    $admin = User::factory()->create();
+    $facility = createAdminManagementFacility();
+
+    createAdminManagementBooking($facility, [
+        'visitor_age' => 17,
+        'visitor_sex' => 'Male',
+        'visit_date' => today()->toDateString(),
+        'status' => 'Approved',
+    ]);
+
+    createAdminManagementBooking($facility, [
+        'visitor_age' => 18,
+        'visitor_sex' => 'Female',
+        'visit_date' => today()->toDateString(),
+        'status' => 'Approved',
+    ]);
+
+    createAdminManagementBooking($facility, [
+        'visitor_age' => 19,
+        'visitor_sex' => 'Male',
+        'visit_date' => today()->toDateString(),
+        'status' => 'Approved',
+    ]);
+
+    createAdminManagementBooking($facility, [
+        'visitor_age' => 59,
+        'visitor_sex' => 'Female',
+        'visit_date' => today()->toDateString(),
+        'status' => 'Approved',
+    ]);
+
+    createAdminManagementBooking($facility, [
+        'visitor_age' => 60,
+        'visitor_sex' => 'Male',
+        'visit_date' => today()->toDateString(),
+        'status' => 'Approved',
+    ]);
+
+    createAdminManagementBooking($facility, [
+        'visitor_age' => 61,
+        'visitor_sex' => 'Female',
+        'visit_date' => today()->toDateString(),
+        'status' => 'Approved',
+    ]);
+
+    $response = $this->actingAs($admin)
+        ->get(route('admin.daily-summary', ['date' => today()->toDateString()]));
+
+    $response->assertOk();
+    $summary = $response->viewData('summary');
+
+    expect($summary['by_age']['child'])->toBe(1) // 17 only
+        ->and($summary['by_age']['adult'])->toBe(3) // 18, 19, and 59
+        ->and($summary['by_age']['senior'])->toBe(2); // 60 and 61
+});
+
+test('daily summary only counts approved bookings', function () {
+    $admin = User::factory()->create();
+    $facility = createAdminManagementFacility();
+
+    createAdminManagementBooking($facility, [
+        'visit_date' => today()->toDateString(),
+        'status' => 'Approved',
+    ]);
+
+    createAdminManagementBooking($facility, [
+        'visit_date' => today()->toDateString(),
+        'status' => 'Pending',
+    ]);
+
+    createAdminManagementBooking($facility, [
+        'visit_date' => today()->toDateString(),
+        'status' => 'Rejected',
+    ]);
+
+    $response = $this->actingAs($admin)
+        ->get(route('admin.daily-summary', ['date' => today()->toDateString()]));
+
+    $response->assertOk();
+    $summary = $response->viewData('summary');
+
+    expect($summary['total_visitors'])->toBe(1);
 });

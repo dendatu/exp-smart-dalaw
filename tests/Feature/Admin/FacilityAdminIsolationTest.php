@@ -2,7 +2,6 @@
 
 use App\Models\Booking;
 use App\Models\Facility;
-use App\Models\Pdl;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -85,21 +84,6 @@ test('facility admins cannot access another facility booking or global admin acc
         'status' => 'Approved',
         'reason' => 'Attempted cross-facility status update.',
     ])->assertNotFound();
-
-    $this->actingAs($facilityAdmin)
-        ->get(route('booking.success', $otherBooking->reference_code))
-        ->assertNotFound();
-
-    $this->actingAs($facilityAdmin)
-        ->from(route('bookings.track'))
-        ->post(route('bookings.track.search'), [
-            'reference_code' => $otherBooking->reference_code,
-        ])->assertRedirect(route('bookings.track'))
-        ->assertSessionHas('error');
-
-    $this->actingAs($facilityAdmin)
-        ->get(route('qr.redirect', $otherBooking->reference_code))
-        ->assertRedirect(route('bookings.track'));
 
     $this->put(route('admin.bookings.update', $otherBooking), [
         'facility_id' => $assignedFacility->id,

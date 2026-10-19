@@ -101,7 +101,7 @@ test('booking rejects a PDL assigned to a different facility', function () {
     expect(Booking::count())->toBe(1);
 });
 
-test('facility admin cannot browse another facility through public booking endpoints', function () {
+test('facility admins browse and book any facility through the public portal', function () {
     [$assignedFacility] = createConsentFacility();
     [$otherFacility] = createConsentFacility();
     $facilityAdmin = User::factory()->create([
@@ -112,12 +112,45 @@ test('facility admin cannot browse another facility through public booking endpo
     $this->actingAs($facilityAdmin)
         ->get(route('bookings.create'))
         ->assertOk()
-        ->assertSeeText('Consent Test Facility')
-        ->assertDontSee('value="'.$otherFacility->id.'"', false);
+        ->assertSee('value="'.$assignedFacility->id.'" data-badge-url', false)
+        ->assertSee('value="'.$otherFacility->id.'" data-badge-url', false);
 
     $this->postJson(route('api.check-availability'), [
         'facility_id' => $otherFacility->id,
         'visit_date' => today()->addDays(4)->toDateString(),
         'time_slot' => '8:00 AM - 9:00 AM',
-    ])->assertNotFound();
+    ])->assertOk()
+        ->assertJsonPath('available', true);
+
+    $this->post(route('bookings.store'), [
+        'facility_id' => $otherFacility->id,
+        'pdl_name' => 'Juan Dela Cruz',
+        'visitor_full_name' => 'Visitor Name',
+        'visitor_sex' => 'Male',
+        'visitor_age' => 30,
+        'visitor_contact' => '09123456789',
+        'visitor_id_type' => 'Passport',
+        'visitor_id_number' => 'P1234567',
+        'relationship_to_pdl' => 'Sibling',
+        'visit_date' => today()->addDays(4)->toDateString(),
+        'time_slot' => '8:00 AM - 9:00 AM',
+        'terms_accepted' => '1',
+        'privacy_consent' => '1',
+    ])->assertRedirect();
+
+    expect(Booking::count())->toBe(1)
+        ->and(Booking::first()->facility_id)->toBe($otherFacility->id);
+
+    $referenceCode = Booking::first()->reference_code;
+
+    $this->get(route('booking.success', $referenceCode))
+        ->assertOk()
+        ->assertSeeText($referenceCode);
+
+    $this->post(route('bookings.track.search'), ['reference_code' => $referenceCode])
+        ->assertOk()
+        ->assertSeeText($referenceCode);
+
+    $this->get(route('qr.redirect', $referenceCode))
+        ->assertRedirect(route('booking.success', $referenceCode));
 });

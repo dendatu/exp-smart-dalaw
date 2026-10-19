@@ -9,7 +9,10 @@
             <h1 class="mt-1 text-2xl font-bold text-[#102044]">Booking dashboard</h1>
             <p class="mt-2 text-sm text-slate-600">Review requests and monitor scheduled visits.</p>
         </div>
-        <a href="{{ route('admin.calendar') }}" class="text-sm font-semibold text-[#0A2472] hover:underline">Open visit calendar &rarr;</a>
+        <div class="flex gap-3">
+            <a href="{{ route('admin.daily-summary') }}" class="text-sm font-semibold text-[#0A2472] hover:underline">Daily summary &rarr;</a>
+            <a href="{{ route('admin.calendar') }}" class="text-sm font-semibold text-[#0A2472] hover:underline">Visit calendar &rarr;</a>
+        </div>
     </div>
 
     <section class="mt-6" aria-label="Booking analytics">
@@ -72,7 +75,9 @@
                 <h2 id="booking-requests-heading" class="text-lg font-bold text-[#102044]">Booking requests</h2>
                 <p class="mt-1 text-sm text-slate-600">Filter and update visit requests.</p>
             </div>
-            <form action="{{ route('admin.dashboard') }}" method="GET" class="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <a href="{{ route('admin.bookings.create') }}" class="inline-flex min-h-10 items-center justify-center rounded-md bg-[#0A2472] px-4 py-2 text-sm font-semibold text-white hover:bg-[#071D54]">Add Walk-in Visitor</a>
+                <form action="{{ route('admin.dashboard') }}" method="GET" class="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <select name="status" aria-label="Filter by status" class="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-[#0A2472] focus:outline-none focus:ring-2 focus:ring-blue-100">
                     <option value="">All statuses</option>
                     <option value="Pending" @selected(request('status') === 'Pending')>Pending</option>
@@ -85,6 +90,7 @@
                     <a href="{{ route('admin.dashboard') }}" class="min-h-10 rounded-md px-3 py-2 text-center text-sm font-medium text-slate-600 hover:bg-slate-100">Clear</a>
                 @endif
             </form>
+            </div>
         </div>
 
         <div class="mt-4 overflow-x-auto border-y border-slate-200 bg-white">

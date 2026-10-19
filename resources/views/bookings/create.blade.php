@@ -522,13 +522,18 @@
                 });
                 const availability = await response.json();
 
+                if (!availability || typeof availability.available === 'undefined') {
+                    availabilityPanel.classList.add('hidden');
+                    return;
+                }
+
                 availabilityPanel.className = availability.available
                     ? 'rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3'
                     : 'rounded-lg border border-red-200 bg-red-50 px-4 py-3';
                 availabilityMessage.className = availability.available ? 'text-sm text-emerald-800' : 'text-sm text-red-800';
                 availabilityMessage.textContent = availability.available
-                    ? `This slot is available. ${availability.current_bookings} of ${availability.max_visitors_per_hour} visitors booked.`
-                    : `This slot is fully booked. ${availability.current_bookings} of ${availability.max_visitors_per_hour} visitors booked.`;
+                    ? `This slot is available. ${availability.current_bookings ?? 0} of ${availability.max_visitors_per_hour ?? 0} visitors booked.`
+                    : `This slot is fully booked. ${availability.current_bookings ?? 0} of ${availability.max_visitors_per_hour ?? 0} visitors booked.`;
             } catch {
                 availabilityPanel.classList.add('hidden');
             }

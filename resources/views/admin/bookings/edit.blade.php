@@ -112,10 +112,126 @@
                 <input type="text" id="relationship_to_pdl" name="relationship_to_pdl" value="{{ old('relationship_to_pdl', $booking->relationship_to_pdl) }}" required maxlength="100" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm focus:border-[#0A2472] focus:outline-none focus:ring-2 focus:ring-blue-100">
             </div>
 
+            <div class="space-y-4 border-t border-slate-200 pt-5">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-semibold text-slate-800">Accompanying Visitors <span class="font-normal text-slate-500">(optional)</span></h3>
+                    <button type="button" id="add-accompanying-visitor" class="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                        Add Visitor
+                    </button>
+                </div>
+                <p class="text-xs text-slate-500">Add other people who will accompany the visitor during the visit.</p>
+                <div id="accompanying-visitors-container" class="space-y-4">
+                    @foreach($booking->accompanyingVisitors as $index => $visitor)
+                        <div class="rounded-md border border-slate-200 bg-slate-50 p-4" data-accompanying-index="{{ $index }}">
+                            <div class="mb-3 flex items-center justify-between">
+                                <h4 class="text-sm font-semibold text-slate-800">Visitor {{ $index + 1 }}</h4>
+                                <button type="button" class="remove-accompanying-visitor text-sm text-red-600 hover:text-red-800" data-index="{{ $index }}">Remove</button>
+                            </div>
+                            <div class="grid gap-4 sm:grid-cols-2">
+                                <div class="sm:col-span-2">
+                                    <label class="mb-1.5 block text-xs font-semibold text-slate-700">Full name</label>
+                                    <input type="text" name="accompanying_visitors[{{ $index }}][full_name]" value="{{ old("accompanying_visitors.{$index}.full_name", $visitor->full_name) }}" required maxlength="255" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-[#0A2472] focus:outline-none focus:ring-2 focus:ring-blue-100">
+                                </div>
+                                <div>
+                                    <label class="mb-1.5 block text-xs font-semibold text-slate-700">Age</label>
+                                    <input type="number" name="accompanying_visitors[{{ $index }}][age]" value="{{ old("accompanying_visitors.{$index}.age", $visitor->age) }}" required min="1" max="120" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-[#0A2472] focus:outline-none focus:ring-2 focus:ring-blue-100">
+                                </div>
+                                <div>
+                                    <label class="mb-1.5 block text-xs font-semibold text-slate-700">Sex</label>
+                                    <select name="accompanying_visitors[{{ $index }}][sex]" required class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-[#0A2472] focus:outline-none focus:ring-2 focus:ring-blue-100">
+                                        <option value="">Select sex</option>
+                                        <option value="Male" @selected(old("accompanying_visitors.{$index}.sex", $visitor->sex) === 'Male')">Male</option>
+                                        <option value="Female" @selected(old("accompanying_visitors.{$index}.sex", $visitor->sex) === 'Female')">Female</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="mb-1.5 block text-xs font-semibold text-slate-700">Type of valid ID</label>
+                                    <input type="text" name="accompanying_visitors[{{ $index }}][id_type]" value="{{ old("accompanying_visitors.{$index}.id_type", $visitor->id_type) }}" required maxlength="50" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-[#0A2472] focus:outline-none focus:ring-2 focus:ring-blue-100">
+                                </div>
+                                <div>
+                                    <label class="mb-1.5 block text-xs font-semibold text-slate-700">ID number</label>
+                                    <input type="text" name="accompanying_visitors[{{ $index }}][id_number]" value="{{ old("accompanying_visitors.{$index}.id_number", $visitor->id_number) }}" required maxlength="50" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-[#0A2472] focus:outline-none focus:ring-2 focus:ring-blue-100">
+                                </div>
+                                <div class="sm:col-span-2">
+                                    <label class="mb-1.5 block text-xs font-semibold text-slate-700">Relationship to PDL</label>
+                                    <input type="text" name="accompanying_visitors[{{ $index }}][relationship_to_pdl]" value="{{ old("accompanying_visitors.{$index}.relationship_to_pdl", $visitor->relationship_to_pdl) }}" required maxlength="100" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-[#0A2472] focus:outline-none focus:ring-2 focus:ring-blue-100">
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+
             <div class="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
                 <a href="{{ route('admin.dashboard') }}" class="inline-flex min-h-10 items-center justify-center rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</a>
                 <button type="submit" class="inline-flex min-h-10 items-center justify-center rounded-md bg-[#0A2472] px-4 py-2 text-sm font-semibold text-white hover:bg-[#071D54]">Save booking</button>
             </div>
         </form>
     </div>
+
+    <script>
+        const accompanyingVisitorsContainer = document.getElementById('accompanying-visitors-container');
+        const addAccompanyingVisitorBtn = document.getElementById('add-accompanying-visitor');
+        let accompanyingVisitorCount = {{ $booking->accompanyingVisitors->count() }};
+
+        function createAccompanyingVisitorForm(index) {
+            const div = document.createElement('div');
+            div.className = 'rounded-md border border-slate-200 bg-slate-50 p-4';
+            div.dataset.accompanyingIndex = index;
+            div.innerHTML = `
+                <div class="mb-3 flex items-center justify-between">
+                    <h4 class="text-sm font-semibold text-slate-800">Visitor ${index + 1}</h4>
+                    <button type="button" class="remove-accompanying-visitor text-sm text-red-600 hover:text-red-800" data-index="${index}">Remove</button>
+                </div>
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div class="sm:col-span-2">
+                        <label class="mb-1.5 block text-xs font-semibold text-slate-700">Full name</label>
+                        <input type="text" name="accompanying_visitors[${index}][full_name]" required maxlength="255" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-[#0A2472] focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    </div>
+                    <div>
+                        <label class="mb-1.5 block text-xs font-semibold text-slate-700">Age</label>
+                        <input type="number" name="accompanying_visitors[${index}][age]" required min="1" max="120" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-[#0A2472] focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    </div>
+                    <div>
+                        <label class="mb-1.5 block text-xs font-semibold text-slate-700">Sex</label>
+                        <select name="accompanying_visitors[${index}][sex]" required class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-[#0A2472] focus:outline-none focus:ring-2 focus:ring-blue-100">
+                            <option value="">Select sex</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="mb-1.5 block text-xs font-semibold text-slate-700">Type of valid ID</label>
+                        <input type="text" name="accompanying_visitors[${index}][id_type]" required maxlength="50" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-[#0A2472] focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    </div>
+                    <div>
+                        <label class="mb-1.5 block text-xs font-semibold text-slate-700">ID number</label>
+                        <input type="text" name="accompanying_visitors[${index}][id_number]" required maxlength="50" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-[#0A2472] focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="mb-1.5 block text-xs font-semibold text-slate-700">Relationship to PDL</label>
+                        <input type="text" name="accompanying_visitors[${index}][relationship_to_pdl]" required maxlength="100" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-[#0A2472] focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    </div>
+                </div>
+            `;
+            return div;
+        }
+
+        addAccompanyingVisitorBtn.addEventListener('click', () => {
+            const form = createAccompanyingVisitorForm(accompanyingVisitorCount);
+            accompanyingVisitorsContainer.appendChild(form);
+            accompanyingVisitorCount++;
+        });
+
+        accompanyingVisitorsContainer.addEventListener('click', (e) => {
+            if (e.target.classList.contains('remove-accompanying-visitor')) {
+                const index = e.target.dataset.index;
+                const form = accompanyingVisitorsContainer.querySelector(`[data-accompanying-index="${index}"]`);
+                if (form) {
+                    form.remove();
+                }
+            }
+        });
+    </script>
 @endsection

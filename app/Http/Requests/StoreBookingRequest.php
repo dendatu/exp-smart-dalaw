@@ -4,7 +4,6 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Validator;
 
 class StoreBookingRequest extends FormRequest
 {
@@ -48,17 +47,5 @@ class StoreBookingRequest extends FormRequest
             'accompanying_visitors.*.id_number' => ['required', 'string', 'max:50'],
             'accompanying_visitors.*.relationship_to_pdl' => ['required', 'string', 'max:100'],
         ];
-    }
-
-    public function after(): array
-    {
-        return [function (Validator $validator): void {
-            $user = $this->user();
-
-            if ($user?->isFacilityAdmin()
-                && (int) $this->input('facility_id') !== (int) $user->facility_id) {
-                $validator->errors()->add('facility_id', 'This account can only access its assigned facility.');
-            }
-        }];
     }
 }

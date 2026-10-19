@@ -3,10 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreBookingRequest;
-use App\Models\AccompanyingVisitor;
 use App\Models\Booking;
 use App\Models\Facility;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -21,7 +19,7 @@ class BookingController extends Controller
 
     public function create()
     {
-        $facilities = Facility::query()->visibleToUser(auth()->user())->orderBy('regional_office')->orderBy('name')->get();
+        $facilities = Facility::query()->orderBy('regional_office')->orderBy('name')->get();
 
         return view('bookings.create', compact('facilities'));
     }
@@ -33,10 +31,6 @@ class BookingController extends Controller
             'visit_date' => ['required', 'date'],
             'time_slot' => ['required', 'string', 'max:50'],
         ]);
-
-        if ($request->user()?->isFacilityAdmin() && (int) $request->user()->facility_id !== (int) $validated['facility_id']) {
-            abort(404);
-        }
 
         $facility = Facility::findOrFail($validated['facility_id']);
         $existingBookings = Booking::where('facility_id', $facility->id)
@@ -109,7 +103,7 @@ class BookingController extends Controller
 
     public function success($code)
     {
-        $booking = $this->visibleBookings()->with(['facility', 'statusHistory.changedBy'])
+        $booking = Booking::query()->with(['facility', 'statusHistory.changedBy', 'accompanyingVisitors'])
             ->where('reference_code', $code)
             ->firstOrFail();
 
@@ -127,7 +121,7 @@ class BookingController extends Controller
             'reference_code' => 'required|string',
         ]);
 
-        $booking = $this->visibleBookings()->with(['facility', 'statusHistory.changedBy'])
+        $booking = Booking::query()->with(['facility', 'statusHistory.changedBy', 'accompanyingVisitors'])
             ->where('reference_code', strtoupper($request->reference_code))
             ->first();
 
@@ -140,7 +134,7 @@ class BookingController extends Controller
 
     public function qrRedirect($code)
     {
-        $booking = $this->visibleBookings()->with(['facility'])
+        $booking = Booking::query()->with(['facility', 'accompanyingVisitors'])
             ->where('reference_code', strtoupper($code))
             ->first();
 
@@ -149,13 +143,5 @@ class BookingController extends Controller
         }
 
         return redirect()->route('booking.success', $booking->reference_code);
-    }
-
-    private function visibleBookings(): Builder
-    {
-        $query = Booking::query();
-        $user = auth()->user();
-
-        return $user ? $query->visibleToUser($user) : $query;
     }
 }

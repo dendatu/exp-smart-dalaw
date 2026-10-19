@@ -33,8 +33,15 @@ class UpdateBookingRequest extends FormRequest
             'visitor_id_type' => ['required', 'string', 'max:50'],
             'visitor_id_number' => ['required', 'string', 'max:50'],
             'relationship_to_pdl' => ['required', 'string', 'max:100'],
-            'visit_date' => ['required', 'date', 'after:today'],
+            'visit_date' => ['required', 'date', 'after_or_equal:today'],
             'time_slot' => ['required', 'string', 'max:50'],
+            'accompanying_visitors' => ['nullable', 'array'],
+            'accompanying_visitors.*.full_name' => ['required', 'string', 'max:255'],
+            'accompanying_visitors.*.age' => ['required', 'integer', 'min:1', 'max:120'],
+            'accompanying_visitors.*.sex' => ['required', 'string', 'in:Male,Female'],
+            'accompanying_visitors.*.id_type' => ['required', 'string', 'max:50'],
+            'accompanying_visitors.*.id_number' => ['required', 'string', 'max:50'],
+            'accompanying_visitors.*.relationship_to_pdl' => ['required', 'string', 'max:100'],
         ];
     }
 }

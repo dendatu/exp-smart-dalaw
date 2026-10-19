@@ -41,6 +41,20 @@
                     <div class="border-b border-slate-100 py-4"><dt class="text-xs text-slate-500">Visitor</dt><dd class="mt-1 text-sm font-medium text-slate-900">{{ $booking->visitor_full_name }}</dd></div>
                     <div class="border-b border-slate-100 py-4"><dt class="text-xs text-slate-500">Date &amp; time</dt><dd class="mt-1 text-sm font-medium text-slate-900">{{ $booking->visit_date->format('M d, Y') }} · {{ $booking->time_slot }}</dd></div>
                 </dl>
+
+                @if($booking->accompanyingVisitors->count() > 0)
+                    <div class="mt-4 border-t border-slate-100 pt-4">
+                        <dt class="text-xs text-slate-500">Accompanying Visitors ({{ $booking->accompanyingVisitors->count() }})</dt>
+                        <dd class="mt-2 space-y-2">
+                            @foreach($booking->accompanyingVisitors as $visitor)
+                                <div class="rounded-md bg-slate-50 p-3 text-sm">
+                                    <p class="font-medium text-slate-900">{{ $visitor->full_name }}</p>
+                                    <p class="mt-1 text-xs text-slate-600">{{ $visitor->age }} years old · {{ $visitor->sex }} · {{ $visitor->relationship_to_pdl }}</p>
+                                </div>
+                            @endforeach
+                        </dd>
+                    </div>
+                @endif
             </article>
 
             <aside class="rounded-lg border border-slate-200 bg-white p-5 text-center sm:p-7">

@@ -9,27 +9,27 @@ use SimpleSoftwareIO\QrCode\Facades\QrCode;
 uses(RefreshDatabase::class);
 
 test('urls and routes are dynamically based on APP_URL configuration', function () {
-    config(['app.url' => 'http://smart-dalaw.test']);
+    config(['app.url' => 'http://exp-smart-dalaw.test']);
     (new AppServiceProvider(app()))->boot();
 
-    expect(url('/'))->toBe('http://smart-dalaw.test')
-        ->and(route('home'))->toBe('http://smart-dalaw.test')
-        ->and(route('bookings.create'))->toBe('http://smart-dalaw.test/book')
-        ->and(route('qr.redirect', ['code' => 'BJMP-TEST01']))->toBe('http://smart-dalaw.test/qr/BJMP-TEST01')
-        ->and(asset('css/app.css'))->toBe('http://smart-dalaw.test/css/app.css');
+    expect(url('/'))->toBe('http://exp-smart-dalaw.test')
+        ->and(route('home'))->toBe('http://exp-smart-dalaw.test')
+        ->and(route('bookings.create'))->toBe('http://exp-smart-dalaw.test/book')
+        ->and(route('qr.redirect', ['code' => 'BJMP-TEST01']))->toBe('http://exp-smart-dalaw.test/qr/BJMP-TEST01')
+        ->and(asset('css/app.css'))->toBe('http://exp-smart-dalaw.test/css/app.css');
 });
 
 test('urls respect https scheme when APP_URL is https', function () {
-    config(['app.url' => 'https://smart-dalaw.test']);
+    config(['app.url' => 'https://exp-smart-dalaw.test']);
     (new AppServiceProvider(app()))->boot();
 
-    expect(url('/'))->toBe('https://smart-dalaw.test')
-        ->and(route('home'))->toBe('https://smart-dalaw.test')
-        ->and(route('qr.redirect', ['code' => 'BJMP-TEST01']))->toBe('https://smart-dalaw.test/qr/BJMP-TEST01');
+    expect(url('/'))->toBe('https://exp-smart-dalaw.test')
+        ->and(route('home'))->toBe('https://exp-smart-dalaw.test')
+        ->and(route('qr.redirect', ['code' => 'BJMP-TEST01']))->toBe('https://exp-smart-dalaw.test/qr/BJMP-TEST01');
 });
 
 test('success page generates QR code matching APP_URL even when request host differs', function () {
-    config(['app.url' => 'http://smart-dalaw.test']);
+    config(['app.url' => 'http://exp-smart-dalaw.test']);
     (new AppServiceProvider(app()))->boot();
 
     $facility = Facility::create([
@@ -63,6 +63,6 @@ test('success page generates QR code matching APP_URL even when request host dif
 
     $response->assertStatus(200);
 
-    $expectedQrCode = (string) QrCode::size(180)->generate('http://smart-dalaw.test/qr/BJMP-TESTQR');
+    $expectedQrCode = (string) QrCode::size(180)->generate('http://exp-smart-dalaw.test/qr/BJMP-TESTQR');
     $response->assertSee($expectedQrCode, false);
 });

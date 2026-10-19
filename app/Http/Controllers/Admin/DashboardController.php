@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
@@ -122,5 +123,61 @@ class DashboardController extends Controller
         });
 
         return redirect()->route('admin.dashboard')->with('success', "Booking status changed to {$status}.");
+    }
+
+    public function dailySummary(Request $request): View
+    {
+        $date = $request->query('date', today()->toDateString());
+
+        $bookings = Booking::visibleToUser($request->user())
+            ->whereDate('visit_date', $date)
+            ->where('status', 'Approved')
+            ->with('accompanyingVisitors')
+            ->get();
+
+        $summary = [
+            'date' => $date,
+            'total_visitors' => 0,
+            'by_sex' => ['Male' => 0, 'Female' => 0],
+            'by_age' => ['child' => 0, 'adult' => 0, 'senior' => 0],
+            'by_sex_and_age' => [
+                'Male' => ['child' => 0, 'adult' => 0, 'senior' => 0],
+                'Female' => ['child' => 0, 'adult' => 0, 'senior' => 0],
+            ],
+        ];
+
+        foreach ($bookings as $booking) {
+            $visitors = collect([
+                [
+                    'age' => $booking->visitor_age,
+                    'sex' => $booking->visitor_sex,
+                ],
+            ]);
+
+            foreach ($booking->accompanyingVisitors as $accompanying) {
+                $visitors->push([
+                    'age' => $accompanying->age,
+                    'sex' => $accompanying->sex,
+                ]);
+            }
+
+            foreach ($visitors as $visitor) {
+                $summary['total_visitors']++;
+                $summary['by_sex'][$visitor['sex']]++;
+
+                if ($visitor['age'] < 18) {
+                    $ageCategory = 'child';
+                } elseif ($visitor['age'] >= 60) {
+                    $ageCategory = 'senior';
+                } else {
+                    $ageCategory = 'adult';
+                }
+
+                $summary['by_age'][$ageCategory]++;
+                $summary['by_sex_and_age'][$visitor['sex']][$ageCategory]++;
+            }
+        }
+
+        return view('admin.daily-summary', compact('summary', 'bookings'));
     }
 }

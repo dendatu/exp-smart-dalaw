@@ -31,9 +31,12 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 // Admin Dashboard Routes (Protected)
 Route::middleware(['admin'])->prefix('admin')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
+    Route::get('/daily-summary', [DashboardController::class, 'dailySummary'])->name('admin.daily-summary');
     Route::post('/bookings/{booking}/approve', [DashboardController::class, 'approve'])->name('admin.approve');
     Route::post('/bookings/{booking}/reject', [DashboardController::class, 'reject'])->name('admin.reject');
     Route::post('/bookings/{booking}/status', [DashboardController::class, 'updateStatus'])->name('admin.bookings.status.update');
+    Route::get('/bookings/create', [AdminBookingController::class, 'create'])->name('admin.bookings.create');
+    Route::post('/bookings', [AdminBookingController::class, 'store'])->name('admin.bookings.store');
     Route::get('/bookings/{booking}/edit', [AdminBookingController::class, 'edit'])->name('admin.bookings.edit');
     Route::put('/bookings/{booking}', [AdminBookingController::class, 'update'])->name('admin.bookings.update');
     Route::get('/calendar', [CalendarController::class, 'index'])->name('admin.calendar');
